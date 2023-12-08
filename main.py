@@ -33,11 +33,13 @@ class enemy(object):
         self.pos = np.array([X,Y])
         self.val = 0
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
+        self.distance = 0
 
     def move(self,r):
         
         d = DIR[self.val]
         self.pos += d*self.speed
+        self.distance += self.speed
 
         if sum(d) > 0 and (sum(d*self.pos) - sum(PATH[self.val+1]*d)) >= 0:
             self.val +=1
@@ -51,9 +53,16 @@ class enemy(object):
                 r = False
         
         return r
+    
+    def check_alive(self):
+        
+        if self.health <= 0:
+            return False
+        return True
 
 class tower(object):
     def __init__(self,type,pos):
+
         self.basic_hit = False
         self.bomb_hit = False
         self.radial_hit = False
@@ -63,20 +72,54 @@ class tower(object):
             self.spr = 'Sniper.png'
             self.cost = 100
             self.range = 125
+            self.damage = 10
         if type == 2:
             self.bomb_hit = True
             self.fire_period = 10
             self.spr = 'Rocket.png'
             self.cost = 300
             self.range = 200
+            self.damage = 10
         if type == 3:
             self.radial_hit = True
             self.fire_period = 10
             self.spr = 'Gun.png'
             self.cost = 500
             self.range = 75
+            self.damage = 10
         self.pos = pos
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
+        self.fire_time = self.fire_period
+
+    def shoot(self,E_list):
+
+        self.fire_time -= 1
+        if self.fire_time <= 0:
+            if self.basic_hit == True:
+                self.basic_shoot(E_list)
+
+    def basic_shoot(self,E_list):
+
+        self.fire_time = self.fire_period
+        target_dist = 0
+        target = 0
+        for j in E_list:
+            dist = np.array(j.pos) - np.array(self.pos)
+            magnitude = (dist[0]**2+dist[1]**2)**(1/2)
+            if magnitude <= self.range and j.distance >= target_dist:
+                target_dist = j.distance
+                target = j
+        if target:
+            target.health -= self.damage
+            
+
+        
+
+
+                
+
+        
+    
 
     
 
@@ -136,13 +179,21 @@ def check_radius(event):
     if len(Tower_list) >= 0:
         for i in range(len(Tower_list)):
             if Tower_list[i][1].collidepoint(event.pos):
-                print('yahoo')
                 return True,i
         return False,0
 
-
 def round_down(numbers):
     return [math.floor(num / BS) * BS for num in numbers]
+
+def delete_enemy(E_list):
+    c = 0
+    for j in range(len(E_list)):
+        i = E_list[j-c]
+        if not(i.check_alive()):
+            del(E_list[j-c])
+            c += 1
+    return E_list
+
 
 
 
@@ -234,6 +285,12 @@ while run:
     
     for i in Enemy_list:
         run = i.move(run)  
+    
+    for i in Tower_list:
+        i[0].shoot(Enemy_list)
+
+    Enemy_list = delete_enemy(Enemy_list)
+
 
         
     draw_window(time,Enemy_list,Select,Tower_list,tower_ind)
