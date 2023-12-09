@@ -19,6 +19,9 @@ OVERLAY = [[BS,BS],[WIDTH-BS,BS],[WIDTH-BS,HEIGHT-2*BS],[BS,HEIGHT-2*BS],[BS,HEI
 PATH = [[250,50],[250,300],[350,300],[350,400],[100,400],[100,200],[150,200],[150,0],['end','end']]
 SUPP_PATH = []
 DIR = []  
+AL1 = 5
+AL2 = 10
+AL3 = 15
 
 class enemy(object):
     def __init__(self,type):
@@ -75,6 +78,8 @@ class tower(object):
             self.damage = 10
         if type == 2:
             self.bomb_hit = True
+            self.delay = 25
+            self.bomb_range = 25
             self.fire_period = 10
             self.spr = 'Rocket.png'
             self.cost = 300
@@ -91,16 +96,22 @@ class tower(object):
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
         self.fire_time = self.fire_period
 
-    def shoot(self,E_list):
+    def shoot(self,E_list,animations):
 
+        target_point = []
         self.fire_time -= 1
         if self.fire_time <= 0:
-            if self.basic_hit == True:
-                self.basic_shoot(E_list)
+            if self.basic_hit:
+                animations = self.basic_shoot(E_list,animations)
+            if self.bomb_hit:
+                target_point, animations = self.mortar_shoot(E_list,animations)
+            if self.radial_hit:
+                animations = self.radial_shoot(E_list,animations)
+        
+        return target_point, animations
 
-    def basic_shoot(self,E_list):
+    def basic_shoot(self,E_list,animations):
 
-        self.fire_time = self.fire_period
         target_dist = 0
         target = 0
         for j in E_list:
@@ -111,6 +122,47 @@ class tower(object):
                 target = j
         if target:
             target.health -= self.damage
+            self.fire_time = self.fire_period
+            animations.append([0,target.pos,AL2])
+            animations.append([4,self.pos,AL1])
+        return animations
+
+            
+    def mortar_shoot(self,E_list,animations):
+
+        target_dist = 0
+        target = []
+        for j in E_list:
+            dist = np.array(j.pos) - np.array(self.pos)
+            magnitude = (dist[0]**2+dist[1]**2)**(1/2)
+            if magnitude <= self.range and j.distance >= target_dist:
+                target_dist = j.distance
+                target = j.pos
+                self.fire_time = self.fire_period
+        if any(target):
+            animations.append([5,self.pos,AL1])
+        return target, animations
+    
+    def radial_shoot(self,E_list,animations):
+        counter = 0
+        for j in E_list:
+            dist = np.array(j.pos) - np.array(self.pos)
+            magnitude = (dist[0]**2+dist[1]**2)**(1/2)
+            if magnitude <= self.range:
+               j.health -= self.damage
+               counter += 1
+        if counter > 0:
+               pos = np.array(self.pos) + np.array([BS/2,BS/2])
+               animations.append([4,pos,AL3])
+               self.fire_time = self.fire_period
+        return animations
+
+    
+
+    
+
+        
+
             
 
         
@@ -194,6 +246,37 @@ def delete_enemy(E_list):
             c += 1
     return E_list
 
+def delay_hit(E_list,i, animations):
+    i[1] -= 1
+    if i[1] <= 0:
+        animations.append([1,i[0],AL2])
+        for j in E_list:
+            dist = np.array(j.pos) - np.array(i[0])
+            magnitude = (dist[0]**2+dist[1]**2)**(1/2)
+            if magnitude <= i[3]:
+                j.health -= i[2]
+    return animations
+
+def delete_bomb(Bomb_list):
+    c = 0
+    for j in range(len(Bomb_list)):
+        i = Bomb_list[j-c]
+        if i[1] <= 0:
+            del(Bomb_list[j-c])
+            c += 1
+    return Bomb_list
+
+def delete_animations(animations):
+    c = 0
+    for j in range(len(animations)):
+        i = animations[j-c]
+        if i[2] <= 0:
+            del(animations[j-c])
+            c += 1
+    return animations
+
+def draw_animations(animations):
+    pass
 
 
 
@@ -227,7 +310,7 @@ for i in range(len(PATH)-2):             # Turns the points from PATH into the d
 screen = pg.display.set_mode((WIDTH,HEIGHT))
 #pg.display.set_mode((1, 1), NOFRAME)
 
-def draw_window(time,E_list,Select,T_list,t_ind):
+def draw_window(time,E_list,Select,T_list,t_ind,animations):
    
     pg.draw.polygon(screen, (50,150,50), MAP)
     for i in range(len(SUPP_PATH)):
@@ -244,6 +327,8 @@ def draw_window(time,E_list,Select,T_list,t_ind):
     if check_rad == True:
         centre = T_list[t_ind][0].pos
         draw_circle_alpha(screen, [200,200,200,100], [centre[0]+BS/2,centre[1]+BS/2], T_list[t_ind][0].range)
+    for i in animations:
+        draw_animations(animations)
     pg.draw.polygon(screen, [0,0,255], OVERLAY)
     for j in range(len(Tower_locs)):
         i = Tower_locs[j]
@@ -263,6 +348,8 @@ for i in range(1,4):
 
 Enemy_list = []
 Tower_list = []
+delayed_projectiles = []
+animations_list = []
 file_path = 'Enemy_info.txt'
 Enemy_info = np.int32(np.loadtxt(file_path, delimiter=','))
 Enemy_num = 0
@@ -275,7 +362,6 @@ tower_ind = False
 money = 1000
 
 while run:
-
     clock.tick(50)
     time += 1
     
@@ -284,16 +370,27 @@ while run:
         Enemy_num += 1
     
     for i in Enemy_list:
-        run = i.move(run)  
+        run = i.move(run) 
+
+    for i in animations_list:
+        i[2] -= 1
+
+    for i in delayed_projectiles:
+        animations_list = delay_hit(Enemy_list,i,animations_list)
     
     for i in Tower_list:
-        i[0].shoot(Enemy_list)
+        target_point, animations_list = i[0].shoot(Enemy_list,animations_list)
+        if any(target_point):
+            delayed_projectiles.append([target_point,i[0].delay,i[0].damage,i[0].bomb_range])
+            
+
 
     Enemy_list = delete_enemy(Enemy_list)
-
+    delayed_projectiles = delete_bomb(delayed_projectiles)
+    animations_list = delete_animations(animations_list)
 
         
-    draw_window(time,Enemy_list,Select,Tower_list,tower_ind)
+    draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list)
 
     for event in pg.event.get():
         if event.type == pg.QUIT:
