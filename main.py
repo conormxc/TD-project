@@ -9,19 +9,26 @@ import math
 pg.init()
 clock = pg.time.Clock()
 
-WIDTH , HEIGHT = 600 , 600
-X, Y = 250 , 0
+WIDTH , HEIGHT = 700 , 700
+X, Y = 150 , 0
 FPS = 30
 BS = 50 #Block Size
 MAP = [[BS,BS],[WIDTH-BS,BS],[WIDTH-BS,HEIGHT-2*BS],[BS,HEIGHT-2*BS]]
 OVERLAY = [[BS,BS],[WIDTH-BS,BS],[WIDTH-BS,HEIGHT-2*BS],[BS,HEIGHT-2*BS],[BS,HEIGHT],[0,HEIGHT],[0,0],[HEIGHT,0],[HEIGHT,HEIGHT],[BS,HEIGHT]]
 
-PATH = [[250,50],[250,300],[350,300],[350,400],[100,400],[100,200],[150,200],[150,0],['end','end']]
+PATH = [[X,Y+50],[150,300],[250,300],[250,150],[550,150],[550,250],[500,250],[500,450],[250,450],[250,600],['end','end']]
 SUPP_PATH = []
 DIR = []  
+
 AL1 = 5
 AL2 = 10
 AL3 = 15
+Flame1 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame1.png')),(BS,BS))
+Flame2 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame22.png')),(BS,BS))
+Flame3 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame3.png')),(BS,BS))
+Flame4 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame4.png')),(BS,BS))
+Shot = pg.transform.scale(pg.image.load(os.path.join('Images','Shot.png')),(BS,BS))
+
 
 class enemy(object):
     def __init__(self,type):
@@ -30,7 +37,7 @@ class enemy(object):
             self.health = 100
             self.spr = 'Enemy1.png'
         if type == 2:
-            self.speed = 7
+            self.speed = 2
             self.health = 200
             self.spr = 'Enemy2.png'
         self.pos = np.array([X,Y])
@@ -38,7 +45,7 @@ class enemy(object):
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
         self.distance = 0
 
-    def move(self,r):
+    def move(self,l):
         
         d = DIR[self.val]
         self.pos += d*self.speed
@@ -48,14 +55,16 @@ class enemy(object):
             self.val +=1
             self.pos = PATH[self.val]
             if self.val >= len(DIR):
-                r = False
+                self.health = 0
+                l -= 1
         elif sum(d) < 0 and (sum(d*self.pos) - sum(PATH[self.val+1]*d)) >= 0:
             self.val +=1
             self.pos = PATH[self.val]
             if self.val >= len(DIR):
-                r = False
+                self.health = 0
+                l -= 1
         
-        return r
+        return l
     
     def check_alive(self):
         
@@ -71,7 +80,7 @@ class tower(object):
         self.radial_hit = False
         if type == 1:
             self.basic_hit = True
-            self.fire_period = 10
+            self.fire_period = 15
             self.spr = 'Sniper.png'
             self.cost = 100
             self.range = 125
@@ -80,14 +89,14 @@ class tower(object):
             self.bomb_hit = True
             self.delay = 25
             self.bomb_range = 25
-            self.fire_period = 10
+            self.fire_period = 100
             self.spr = 'Rocket.png'
             self.cost = 300
             self.range = 200
-            self.damage = 10
+            self.damage = 100
         if type == 3:
             self.radial_hit = True
-            self.fire_period = 10
+            self.fire_period = 50
             self.spr = 'Gun.png'
             self.cost = 500
             self.range = 75
@@ -153,7 +162,7 @@ class tower(object):
                counter += 1
         if counter > 0:
                pos = np.array(self.pos) + np.array([BS/2,BS/2])
-               animations.append([4,pos,AL3])
+               animations.append([3,pos,AL3])
                self.fire_time = self.fire_period
         return animations
 
@@ -275,8 +284,22 @@ def delete_animations(animations):
             c += 1
     return animations
 
-def draw_animations(animations):
-    pass
+def draw_animations(animation):
+    if animation[0] == 0:
+        screen.blit(Flame1,animation[1])
+    if animation[0] == 1:
+        screen.blit(Flame2,animation[1])
+    if animation[0] == 3:
+        a = (tower(3,[0,0])).range
+        pg.draw.circle(screen, [255,255,0], animation[1], (a/AL3)*(AL3-animation[2]), width=5)
+    if animation[0] == 4:
+        pos = np.array([animation[1]]) - np.array([0,20])
+        screen.blit(Shot,pos[0])
+    if animation[0] == 5:
+        screen.blit(Flame4,animation[1])
+    
+
+    
 
 
 
@@ -328,17 +351,12 @@ def draw_window(time,E_list,Select,T_list,t_ind,animations):
         centre = T_list[t_ind][0].pos
         draw_circle_alpha(screen, [200,200,200,100], [centre[0]+BS/2,centre[1]+BS/2], T_list[t_ind][0].range)
     for i in animations:
-        draw_animations(animations)
+        draw_animations(i)
     pg.draw.polygon(screen, [0,0,255], OVERLAY)
     for j in range(len(Tower_locs)):
         i = Tower_locs[j]
         screen.blit(pg.transform.scale(pg.image.load(os.path.join('Images',tower(j+1,[200,200]).spr)),(BS,BS)),i)
     pg.display.update()
-
-
-
-
-
 
 
 
@@ -360,9 +378,10 @@ Select = False
 check_rad = False
 tower_ind = False
 money = 1000
+lives = 10
 
 while run:
-    clock.tick(50)
+    clock.tick(200)
     time += 1
     
     if time == Enemy_info[Enemy_num,0]:
@@ -370,7 +389,7 @@ while run:
         Enemy_num += 1
     
     for i in Enemy_list:
-        run = i.move(run) 
+        lives = i.move(lives) 
 
     for i in animations_list:
         i[2] -= 1
@@ -381,7 +400,8 @@ while run:
     for i in Tower_list:
         target_point, animations_list = i[0].shoot(Enemy_list,animations_list)
         if any(target_point):
-            delayed_projectiles.append([target_point,i[0].delay,i[0].damage,i[0].bomb_range])
+            target = target_point.copy()
+            delayed_projectiles.append([target,i[0].delay,i[0].damage,i[0].bomb_range])
             
 
 
@@ -389,6 +409,8 @@ while run:
     delayed_projectiles = delete_bomb(delayed_projectiles)
     animations_list = delete_animations(animations_list)
 
+    if lives <= 0:
+        run = False
         
     draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list)
 
