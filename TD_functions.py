@@ -20,6 +20,10 @@ PATH = [[X,Y+50],[150,300],[250,300],[250,150],[550,150],[550,250],[500,250],[50
 SUPP_PATH = []
 DIR = []  
 
+Tower_locs = []
+for i in range(1,4):
+    Tower_locs.append((i*2*BS,HEIGHT-2*BS))
+
 AL1 = 5
 AL2 = 10
 AL3 = 5
@@ -99,7 +103,7 @@ class tower(object):
             self.damage = 25
         if type == 2:
             self.bomb_hit = True
-            self.delay = 20
+            self.delay = 25
             self.bomb_range = 50
             self.fire_period = 75
             self.spr = 'Rocket.png'
@@ -207,7 +211,7 @@ def Pick_tower(event,Tower_locs,money,Select):
     
     return Select, tower_type
 
-def Place_tower(event,Select,money):
+def Place_tower(event,Select,money,Tower_list,tower_type):
 
     if (event.pos[0] > BS and event.pos[0] < WIDTH-BS) and (event.pos[1] > BS and event.pos[1] < HEIGHT - 2*BS):
         Select = False
@@ -248,7 +252,7 @@ def draw_circle_alpha(surface, color, center, radius):
     pg.draw.circle(shape_surf, color, (radius, radius), radius)
     surface.blit(shape_surf, target_rect)
 
-def check_radius(event):
+def check_radius(event,Tower_list):
     if len(Tower_list) >= 0:
         for i in range(len(Tower_list)):
             if Tower_list[i][1].collidepoint(event.pos):
@@ -342,10 +346,11 @@ for i in range(len(PATH)-2):             # Turns the points from PATH into the d
     SUPP_PATH.append([a1,a2,a4,a3])
     path_rects.append(rect_from_points([a1,a2,a4,a3]))
 
+
 screen = pg.display.set_mode((WIDTH,HEIGHT))
 #pg.display.set_mode((1, 1), NOFRAME)
 
-def draw_window(time,E_list,Select,T_list,t_ind,animations):
+def draw_window(time,E_list,Select,T_list,t_ind,animations,check_rad,Tower_locs):
    
     pg.draw.polygon(screen, (50,150,50), MAP)
     for i in range(len(SUPP_PATH)):
@@ -371,74 +376,68 @@ def draw_window(time,E_list,Select,T_list,t_ind,animations):
     pg.display.update()
 
 
+def play(file_path,money,lives):
 
-Tower_locs = []
-for i in range(1,4):
-    Tower_locs.append((i*2*BS,HEIGHT-2*BS))
+    Enemy_list = []
+    Tower_list = []
+    delayed_projectiles = []
+    animations_list = []
+    Enemy_info = np.int32(np.loadtxt(file_path, delimiter=','))
+    Enemy_num = 0
 
-Enemy_list = []
-Tower_list = []
-delayed_projectiles = []
-animations_list = []
-file_path = 'Enemy_info.txt'
-Enemy_info = np.int32(np.loadtxt(file_path, delimiter=','))
-Enemy_num = 0
+    time = 0
+    run = True
+    Select = False
+    check_rad = False
+    tower_ind = False
 
-time = 0
-run = True
-Select = False
-check_rad = False
-tower_ind = False
-money = 1000
-lives = 10
-
-while run:
-    clock.tick(25)
-    time += 1
-    
-    if time == Enemy_info[Enemy_num,0]:
-        Enemy_list.append(enemy(Enemy_info[Enemy_num,1]))
-        Enemy_num += 1
-    
-    for i in Enemy_list:
-        lives = i.move(lives) 
-
-    for i in animations_list:
-        i[2] -= 1
-
-    for i in delayed_projectiles:
-        animations_list = delay_hit(Enemy_list,i,animations_list)
-    
-    for i in Tower_list:
-        target_point, animations_list = i[0].shoot(Enemy_list,animations_list)
-        if any(target_point):
-            target = target_point.copy()
-            delayed_projectiles.append([target,i[0].delay,i[0].damage,i[0].bomb_range])
-            
-
-
-    Enemy_list = delete_enemy(Enemy_list)
-    delayed_projectiles = delete_bomb(delayed_projectiles)
-    animations_list = delete_animations(animations_list)
-
-    if lives <= 0:
-        run = False
+    while run:
+        clock.tick(25)
+        time += 1
         
-    draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list)
+        if time == Enemy_info[Enemy_num,0]:
+            Enemy_list.append(enemy(Enemy_info[Enemy_num,1]))
+            Enemy_num += 1
+        
+        for i in Enemy_list:
+            lives = i.move(lives) 
 
-    for event in pg.event.get():
-        if event.type == pg.QUIT:
+        for i in animations_list:
+            i[2] -= 1
+
+        for i in delayed_projectiles:
+            animations_list = delay_hit(Enemy_list,i,animations_list)
+        
+        for i in Tower_list:
+            target_point, animations_list = i[0].shoot(Enemy_list,animations_list)
+            if any(target_point):
+                target = target_point.copy()
+                delayed_projectiles.append([target,i[0].delay,i[0].damage,i[0].bomb_range])
+                
+
+
+        Enemy_list = delete_enemy(Enemy_list)
+        delayed_projectiles = delete_bomb(delayed_projectiles)
+        animations_list = delete_animations(animations_list)
+
+        if lives <= 0:
             run = False
-
-        if event.type == pg.MOUSEBUTTONDOWN:
-            check_rad = False
-            if Select == False:
-                Select, tower_type = Pick_tower(event,Tower_locs,money,Select)
-                check_rad, tower_ind = check_radius(event)
             
-            elif Select == True:
-                Select, money = Place_tower(event,Select,money)
-                Select = False
+        draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list,check_rad,Tower_locs)
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                run = False
+
+            if event.type == pg.MOUSEBUTTONDOWN:
+                check_rad = False
+                if Select == False:
+                    Select, tower_type = Pick_tower(event,Tower_locs,money,Select)
+                    check_rad, tower_ind = check_radius(event,Tower_list)
+                
+                elif Select == True:
+                    Select, money = Place_tower(event,Select,money,Tower_list,tower_type)
+                    Select = False
             
                 
 
