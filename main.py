@@ -22,7 +22,7 @@ DIR = []
 
 AL1 = 5
 AL2 = 10
-AL3 = 15
+AL3 = 5
 Flame1 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame1.png')),(BS,BS))
 Flame2 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame22.png')),(BS,BS))
 Flame3 = pg.transform.scale(pg.image.load(os.path.join('Images','Flame3.png')),(BS,BS))
@@ -33,13 +33,25 @@ Shot = pg.transform.scale(pg.image.load(os.path.join('Images','Shot.png')),(BS,B
 class enemy(object):
     def __init__(self,type):
         if type == 1:
-            self.speed = 1
+            self.speed = 2
             self.health = 100
             self.spr = 'Enemy1.png'
+            self.money = 5
         if type == 2:
-            self.speed = 2
+            self.speed = 4
             self.health = 200
             self.spr = 'Enemy2.png'
+            self.money = 10
+        if type == 3:
+            self.speed = 3
+            self.health = 500
+            self.spr = 'Enemy3.png'
+            self.money = 5
+        if type == 4:
+            self.speed = 1
+            self.health = 2000
+            self.spr = 'Enemy44.png'
+            self.money = 10
         self.pos = np.array([X,Y])
         self.val = 0
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
@@ -80,27 +92,27 @@ class tower(object):
         self.radial_hit = False
         if type == 1:
             self.basic_hit = True
-            self.fire_period = 15
+            self.fire_period = 25
             self.spr = 'Sniper.png'
             self.cost = 100
             self.range = 125
-            self.damage = 10
+            self.damage = 25
         if type == 2:
             self.bomb_hit = True
-            self.delay = 25
-            self.bomb_range = 25
-            self.fire_period = 100
+            self.delay = 20
+            self.bomb_range = 50
+            self.fire_period = 75
             self.spr = 'Rocket.png'
-            self.cost = 300
+            self.cost = 500
             self.range = 200
-            self.damage = 100
+            self.damage = 250
         if type == 3:
             self.radial_hit = True
             self.fire_period = 50
             self.spr = 'Gun.png'
-            self.cost = 500
+            self.cost = 300
             self.range = 75
-            self.damage = 10
+            self.damage = 50
         self.pos = pos
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
         self.fire_time = self.fire_period
@@ -381,7 +393,7 @@ money = 1000
 lives = 10
 
 while run:
-    clock.tick(200)
+    clock.tick(25)
     time += 1
     
     if time == Enemy_info[Enemy_num,0]:
