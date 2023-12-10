@@ -6,6 +6,7 @@ import math
 
 
 
+
 pg.init()
 clock = pg.time.Clock()
 
@@ -19,6 +20,9 @@ OVERLAY = [[BS,BS],[WIDTH-BS,BS],[WIDTH-BS,HEIGHT-2*BS],[BS,HEIGHT-2*BS],[BS,HEI
 PATH = [[X,Y+50],[150,300],[250,300],[250,150],[550,150],[550,250],[500,250],[500,450],[250,450],[250,600],['end','end']]
 SUPP_PATH = []
 DIR = []  
+
+pg.font.init() 
+my_font = pg.font.SysFont('Comic Sans MS', 20)
 
 Tower_locs = []
 for i in range(1,4):
@@ -50,12 +54,12 @@ class enemy(object):
             self.speed = 3
             self.health = 500
             self.spr = 'Enemy3.png'
-            self.money = 5
+            self.money = 20
         if type == 4:
             self.speed = 1
             self.health = 2000
             self.spr = 'Enemy44.png'
-            self.money = 10
+            self.money = 50
         self.pos = np.array([X,Y])
         self.val = 0
         self.sprite = pg.transform.scale(pg.image.load(os.path.join('Images',self.spr)),(BS,BS))
@@ -72,12 +76,14 @@ class enemy(object):
             self.pos = PATH[self.val]
             if self.val >= len(DIR):
                 self.health = 0
+                self.money = 0
                 l -= 1
         elif sum(d) < 0 and (sum(d*self.pos) - sum(PATH[self.val+1]*d)) >= 0:
             self.val +=1
             self.pos = PATH[self.val]
             if self.val >= len(DIR):
                 self.health = 0
+                self.money = 0
                 l -= 1
         
         return l
@@ -112,7 +118,7 @@ class tower(object):
             self.damage = 250
         if type == 3:
             self.radial_hit = True
-            self.fire_period = 50
+            self.fire_period = 25
             self.spr = 'Gun.png'
             self.cost = 300
             self.range = 75
@@ -262,14 +268,16 @@ def check_radius(event,Tower_list):
 def round_down(numbers):
     return [math.floor(num / BS) * BS for num in numbers]
 
-def delete_enemy(E_list):
+def delete_enemy(E_list,money):
     c = 0
     for j in range(len(E_list)):
         i = E_list[j-c]
         if not(i.check_alive()):
+            money += i.money
             del(E_list[j-c])
             c += 1
-    return E_list
+
+    return E_list, money
 
 def delay_hit(E_list,i, animations):
     i[1] -= 1
@@ -350,7 +358,7 @@ for i in range(len(PATH)-2):             # Turns the points from PATH into the d
 screen = pg.display.set_mode((WIDTH,HEIGHT))
 #pg.display.set_mode((1, 1), NOFRAME)
 
-def draw_window(time,E_list,Select,T_list,t_ind,animations,check_rad,Tower_locs):
+def draw_window(time,E_list,Select,T_list,t_ind,animations,check_rad,Tower_locs,Money_text,Lives_text):
    
     pg.draw.polygon(screen, (50,150,50), MAP)
     for i in range(len(SUPP_PATH)):
@@ -373,6 +381,8 @@ def draw_window(time,E_list,Select,T_list,t_ind,animations,check_rad,Tower_locs)
     for j in range(len(Tower_locs)):
         i = Tower_locs[j]
         screen.blit(pg.transform.scale(pg.image.load(os.path.join('Images',tower(j+1,[200,200]).spr)),(BS,BS)),i)
+    screen.blit(Money_text, (BS+10,HEIGHT-3*BS))
+    screen.blit(Lives_text, (BS+10,HEIGHT-4*BS))
     pg.display.update()
 
 
@@ -416,14 +426,19 @@ def play(file_path,money,lives):
                 
 
 
-        Enemy_list = delete_enemy(Enemy_list)
+        Enemy_list, money = delete_enemy(Enemy_list, money)
         delayed_projectiles = delete_bomb(delayed_projectiles)
         animations_list = delete_animations(animations_list)
 
         if lives <= 0:
             run = False
+        
+        n_coins = str(money) + ' Coins'
+        n_lives = str(lives) + ' Lives'
+        Money_text = my_font.render(n_coins, False, (0, 0, 0))
+        Lives_text = my_font.render(n_lives, False, (0, 0, 0))
             
-        draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list,check_rad,Tower_locs)
+        draw_window(time,Enemy_list,Select,Tower_list,tower_ind,animations_list,check_rad,Tower_locs,Money_text,Lives_text)
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
