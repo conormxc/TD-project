@@ -386,13 +386,14 @@ def draw_window(time,E_list,Select,T_list,t_ind,animations,check_rad,Tower_locs,
     pg.display.update()
 
 
-def play(file_path,money,lives):
+
+
+def play(Enemy_info,money,lives):
 
     Enemy_list = []
     Tower_list = []
     delayed_projectiles = []
     animations_list = []
-    Enemy_info = np.int32(np.loadtxt(file_path, delimiter=','))
     Enemy_num = 0
 
     time = 0
