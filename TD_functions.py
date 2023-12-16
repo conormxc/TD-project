@@ -72,7 +72,7 @@ class enemy(object):
             self.life_val = 1
         if type == 6:
             self.speed = 1
-            self.health = 2000
+            self.health = 3000
             self.spr = 'Enemy44.png'
             self.money = 50
             self.life_val = 5
