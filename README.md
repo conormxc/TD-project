@@ -1,2 +1,2 @@
-You will need Numpy and Pygame
-Run run.py to play
+You will need Numpy and Pygame, 
+run run.py to play
